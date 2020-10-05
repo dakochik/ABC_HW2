@@ -26,59 +26,91 @@ section '.data' data readable writable
         i        dd ?
         i2       dd 0
         arr      rd 200
+        arrNew   rd 200
 
 section '.code' code readable executable
 
         start:
                 call getArray         ; Заполняем массив.
-                call printArray       ; Выводим массив.
+                call createNew        ; Создание нового массива.
+                call printArray1      ; Выводим массив.
         finish:
                 call [getch]
                 push 0
                 call [ExitProcess]
 ;------------------------------------------------------------------------------------------------------------------
-        printArray:
+        createNew:
+                mov [val2], esp
+                xor ecx, ecx
+                mov eax, arrNew       ; Запоминаем ссылку на первый элемент нового массива.
+                mov ebx, arr          ; Запоминаем ссылку на первый элемент старого массива.
+                mov [val3], 0         ; Флаг, показывающий встретился ли первый положительный элемент.
+
+        createStart:
+                mov [val1], ebx
+                mov [val5], eax
+                cmp ecx, [arr_size]   ; Проверяем, не вышли ли мы за границу массива.
+                jge createEnd         ; Если вышли - завершаем заполнение массива.
+                mov [i], ecx
+
+                mov ecx, [ebx]
+                cmp [val4], ecx       ; Проверяем, встретился ли нам положительный элемент.
+                jge allOkC            ; Если нет, записываем его значение в в новый массив и идем к следующему элементу.
+
+                cmp [val3], 0         ; Иначе проверяем какой по счету это положительный элемент.
+                jne allOkC            ; Если не первый, поступаем аналогично случаю с неположительным элементом.
+                inc [val3]            ; Если первый, пропускаем его и переходим к следующему элементу старого массива.
+                jmp allNotOkC
+
+        allOkC:
+                mov ecx, [ebx]
+                mov [eax], ecx        ; Сохраняем значение в новый массив.
+                mov eax, [val5]
+                add eax, 4            ; Сдвигаемся на 1 элемент далее в новом массиве.
+
+        allNotOkC:
+                mov ecx, [i]
+                inc ecx
+                mov ebx, [val1]
+                add ebx, 4           ; Сдвигаемся на 1 элемент далее в старом массиве.
+                jmp createStart
+
+        createEnd:
+                mov esp, [val2]       ; Возвращаем значение позиции функции в стеке во время вызова.
+                ret
+
+;------------------------------------------------------------------------------------------------------------------
+        printArray1:
                 mov [val2], esp       ; Запоминаем начальное положение функции.
 
                 push strNewArr
                 call [printf]         ; Console: New array B:
+                mov ecx, [val3]
+                sub [arr_size],  ecx
                 xor ecx, ecx          ; Обнуляем регистр.
                 xor eax, eax
-                mov ebx, arr          ; Запоминаем ссылку на крайний эл-т
-                mov [val3], 0         ; Счетчик положительных чисел
+                mov ebx, arrNew       ; Запоминаем ссылку на крайний эл-т
 
-        outputtingStart:
+        outputtingStart1:
                 mov [val1], ebx
                 cmp ecx, [arr_size]   ; Проверяем, не вышли ли мы за границу массива.
-                jge endOutp           ; Если вышли - завершаем заполнение массива.
-
+                jge endOutp1          ; Если вышли - завершаем заполнение массива.
                 mov [i], ecx
 
-                mov eax, [ebx]
-                cmp [val4], eax
-                jge allOk             ; Если эл-т отрицателен или 0, просто выводим его.
-
-                cmp [val3], 0         ; Если положительный эл-т уже выводился, просто выводим его.
-                jne allOk
-                inc [val3]            ; Если это первый положительный эл-т, увеличиваем счетчик и не выводим его.
-                jmp allNotOk
-        allOk:
                 mov eax, [i]
-                sub eax, [val3]       ; Считаем индекс масссива В в зависимости от того был ли уже первый положительный или нет.
                 pushd [ebx]
                 push eax
                 push strOutput
                 call[printf]          ; Console: [{индекс в массиве В}] = {эл-т массива В}
 
-        allNotOk:
                 mov ecx, [i]
                 inc ecx               ; Увеличиваем счетчик эл-в.
                 mov ebx, [val1]
                 add ebx, 4            ; Смещаемся на 1 эл-т вперед в исходном массиве.
-                jmp outputtingStart   ; Возвращаемся к началу цикла.
+                jmp outputtingStart1  ; Возвращаемся к началу цикла.
 
-        endOutp:
-                mov esp, [val2]       ; Возвращаем значение позиции стека во время вызова.
+        endOutp1:
+                mov esp, [val2]       ; Возвращаем значение позиции функци в стеке во время вызова.
                 ret
 ;------------------------------------------------------------------------------------------------------------------
         getArray:
@@ -134,9 +166,9 @@ section '.code' code readable executable
                 jmp getVal
 
         endGetArray:
-                mov esp, [val2]       ; Возвращаем значение позиции стека во время вызова.
+                mov esp, [val2]       ; Возвращаем значение позиции функции в стеке во время вызова.
                 ret
-
+;------------------------------------------------------------------------------------------------------------------
 section '.idata' import data readable
 
     library kernel, 'kernel32.dll',\
